@@ -21,9 +21,9 @@ import warnings
 from typing import Any, ClassVar, Dict, Generic, TypeVar, cast
 
 if sys.version_info >= (3, 8):
-    from typing import Literal, Protocol, get_args, runtime_checkable
+    from typing import Literal, Protocol, runtime_checkable
 else:
-    from typing_extensions import get_args, Literal, Protocol, runtime_checkable
+    from typing_extensions import Literal, Protocol, runtime_checkable
 
 import construct as c
 import construct_typed as ct
@@ -41,6 +41,7 @@ from ._events import (
     StructEventBase,
     T,
     U32Event,
+    UnknownDataEvent,
 )
 from ._models import EventModel, ModelReprMixin
 
@@ -148,6 +149,10 @@ class SoundgoodizerEvent(StructEventBase):
         "mode" / c.Enum(c.Int32ul, A=0, B=1, C=2, D=3),
         "amount" / c.Int32ul,
     ).compile()
+
+
+NativePluginEvent = UnknownDataEvent
+"""Placeholder event type for unimplemented native :attr:`PluginID.Data` events."""
 
 
 class WrapperPage(ct.EnumBase):
@@ -404,23 +409,35 @@ class PluginProp(RWProperty[AnyPlugin]):
     def __init__(self, *types: type[AnyPlugin]) -> None:
         self._types = types
 
+    @staticmethod
+    def _get_plugin_events(ins: EventModel):
+        return ins.events.subtree(lambda e: e.id in (PluginID.Wrapper, PluginID.Data))
+
     def __get__(self, ins: EventModel, owner: Any = None) -> AnyPlugin | None:
         if owner is None:
             return NotImplemented
 
-        for ptype in self._types:
-            if isinstance(ins.events.first(PluginID.Data), get_args(ptype)[0]):
-                return ptype(
-                    ins.events.subdict(
-                        lambda e: e.id in (PluginID.Wrapper, PluginID.Data)
-                    )
-                )
+        try:
+            data_event = ins.events.first(PluginID.Data)
+        except KeyError:
+            return None
 
-    def __set__(self, instance: EventModel, value: AnyPlugin):
+        if isinstance(data_event, UnknownDataEvent):
+            return _PluginBase(self._get_plugin_events(ins))
+
+        for ptype in self._types:
+            event_type = ptype.__orig_bases__[0].__args__[0]  # type: ignore
+            if isinstance(data_event, event_type):
+                return ptype(self._get_plugin_events(ins))
+
+    def __set__(self, ins: EventModel, value: AnyPlugin):
         if isinstance(value, _IPlugin):
-            setattr(instance, "internal_name", value.INTERNAL_NAME)
-        instance.events[PluginID.Data] = value.events[PluginID.Data]
-        instance.events[PluginID.Wrapper] = value.events[PluginID.Wrapper]
+            setattr(ins, "internal_name", value.INTERNAL_NAME)
+
+        for id in (PluginID.Data, PluginID.Wrapper):
+            for ie in ins.events.lst:
+                if ie.e.id == id:
+                    ie.e = value.events.first(id)
 
 
 class _NativePluginProp(StructProp[T]):
@@ -433,15 +450,15 @@ class _VSTPluginProp(RWProperty[T], NamedPropMixin):
         self._id = id
         NamedPropMixin.__init__(self, prop)
 
-    def __get__(self, instance: EventModel, _=None) -> T:
-        value = cast(VSTPluginEvent, instance.events.first(PluginID.Data))[self._id]
+    def __get__(self, ins: EventModel, _=None) -> T:
+        value = cast(VSTPluginEvent, ins.events.first(PluginID.Data))[self._id]
         return self._get(value)
 
     def _get(self, value: Any) -> T:
         return cast(T, value if isinstance(value, (str, bytes)) else value[self._prop])
 
-    def __set__(self, instance: EventModel, value: T):
-        self._set(cast(VSTPluginEvent, instance.events.first(PluginID.Data)), value)
+    def __set__(self, ins: EventModel, value: T):
+        self._set(cast(VSTPluginEvent, ins.events.first(PluginID.Data)), value)
 
     def _set(self, event: VSTPluginEvent, value: T):
         if self._prop is None:
@@ -483,6 +500,9 @@ class VSTPlugin(_PluginBase[VSTPluginEvent], _IPlugin):
     """
 
     INTERNAL_NAME = "Fruity Wrapper"
+
+    def __repr__(self) -> str:
+        return f"VSTPlugin (name={self.name!r}, vendor={self.vendor!r})"
 
     class _AutomationOptions(EventModel):
         """See :attr:`VSTPlugin.automation`."""
@@ -936,7 +956,8 @@ class Soundgoodizer(_PluginBase[SoundgoodizerEvent], _IPlugin, ModelReprMixin):
     """4 preset modes (A, B, C and D). Defaults to ``A``."""
 
 
-def get_event_by_internal_name(name: str) -> type[StructEventBase] | None:
+def get_event_by_internal_name(name: str) -> type[AnyEvent]:
     for cls in _PluginBase.__subclasses__():
         if getattr(cls, "INTERNAL_NAME", None) == name:
             return cls.__orig_bases__[0].__args__[0]  # type: ignore
+    return NativePluginEvent

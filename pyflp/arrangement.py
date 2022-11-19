@@ -84,11 +84,11 @@ class PlaylistEvent(ListEventBase):
         "length" / c.Int32ul,  # 12
         "track_index" / c.Int16ul * "Stored reversed i.e. Track 1 would be 499",  # 14
         "group" / c.Int16ul,  # 16
-        "_u1" / c.Bytes(2),  # 18
-        "item_flags" / c.Int16ul,  # 20
-        "_u2" / c.Bytes(4),  # 24
-        "start_offset" / c.Int32sl,  # 28
-        "end_offset" / c.Int32sl,  # 32
+        "_u1" / c.Bytes(2) * "Always (120, 0)",  # 18
+        "item_flags" / c.Int16ul * "Always (64, 0)",  # 20
+        "_u2" / c.Bytes(4) * "Always (64, 100, 128, 128)",  # 24
+        "start_offset" / c.Float32l,  # 28
+        "end_offset" / c.Float32l,  # 32
     ).compile()
 
 
@@ -122,14 +122,22 @@ class TrackSync(ct.EnumBase):
     Auto = 6
 
 
+class HeightAdapter(ct.Adapter[float, float, str, str]):
+    def _decode(self, obj: float, *_: Any) -> str:
+        return str(int(obj * 100)) + "%"
+
+    def _encode(self, obj: str, *_: Any) -> float:
+        return int(obj[:-1]) / 100
+
+
 class TrackEvent(StructEventBase):
     STRUCT = c.Struct(
         "index" / c.Optional(c.Int32ul),  # 4
         "color" / c.Optional(c.Int32ul),  # 8
         "icon" / c.Optional(c.Int32ul),  # 12
         "enabled" / c.Optional(c.Flag),  # 13
-        "height" / c.Optional(c.Float32l),  # 17
-        "locked_height" / c.Optional(c.Float32l),  # 21
+        "height" / c.Optional(HeightAdapter(c.Float32l)),  # 17
+        "locked_height" / c.Optional(c.Int32sl),  # 21
         "content_locked" / c.Optional(c.Flag),  # 22
         "motion" / c.Optional(StdEnum[TrackMotion](c.Int32ul)),  # 26
         "press" / c.Optional(StdEnum[TrackPress](c.Int32ul)),  # 30
@@ -186,11 +194,13 @@ class PLItemBase(ItemModel[PlaylistEvent], ModelReprMixin):
     """Returns 0 for no group, else a group number for clips in the same group."""
 
     length = StructProp[int]()
+    """PPQ-dependant quantity."""
+
     muted = StructProp[bool]()
     """Whether muted / disabled in the playlist. *New in FL Studio v9.0.0*."""
 
     @property
-    def offsets(self) -> tuple[int, int]:
+    def offsets(self) -> tuple[float, float]:
         """Returns a ``(start, end)`` offset tuple.
 
         An offset is the distance from the item's actual start or end.
@@ -198,10 +208,11 @@ class PLItemBase(ItemModel[PlaylistEvent], ModelReprMixin):
         return (self["start_offset"], self["end_offset"])
 
     @offsets.setter
-    def offsets(self, value: tuple[int, int]):
+    def offsets(self, value: tuple[float, float]):
         self["start_offset"], self["end_offset"] = value
 
     position = StructProp[int]()
+    """PPQ-dependant quantity."""
 
 
 class ChannelPLItem(PLItemBase, ModelReprMixin):
@@ -259,7 +270,7 @@ class TimeMarker(EventModel):
 
     @property
     def position(self) -> int | None:
-        if TimeMarkerID.Position in self.events:
+        if TimeMarkerID.Position in self.events.ids:
             event = self.events.first(TimeMarkerID.Position)
             if event.value < TimeMarkerType.Signature:
                 return event.value
@@ -271,7 +282,7 @@ class TimeMarker(EventModel):
 
         [![](https://bit.ly/3RDM1yn)]()
         """
-        if TimeMarkerID.Position in self.events:
+        if TimeMarkerID.Position in self.events.ids:
             event = self.events.first(TimeMarkerID.Position)
             if event.value >= TimeMarkerType.Signature:
                 return TimeMarkerType.Signature
@@ -326,8 +337,6 @@ class Track(EventModel, ModelCollection[PLItemBase]):
 
     ![](https://bit.ly/3yVGGuW)
 
-    :guilabel:`Change color`
-
     Note:
         Unlike :attr:`Channel.color` and :attr:`Insert.color`, values below ``20`` for
         any color component (i.e red, green or blue) are NOT ignored by FL Studio.
@@ -347,15 +356,8 @@ class Track(EventModel, ModelCollection[PLItemBase]):
     :guilabel:`&Group with above track`
     """
 
-    height = StructProp[float](TrackID.Data)  # TODO #35
-    """Track height in FL's interface. Linear. :guilabel:`&Size`.
-
-    | Type    | Value | Percentage |
-    |---------|-------|------------|
-    | Min     | 0.0   | 0%         |
-    | Max     | 18.4  | 1840%      |
-    | Default | 1.0   | 100%       |
-    """
+    height = StructProp[str](TrackID.Data)
+    """Track height in FL's interface. Linear. :guilabel:`&Size`."""
 
     icon = StructProp[int](TrackID.Data)
     """Returns ``0`` if not set, else an internal icon ID.
@@ -371,7 +373,6 @@ class Track(EventModel, ModelCollection[PLItemBase]):
     ![](https://bit.ly/3VFG6eP)
     """
 
-    locked_height = StructProp[float](TrackID.Data)  # TODO #35
     motion = StructProp[TrackMotion](TrackID.Data)
     """:guilabel:`&Performance settings`, defaults to :attr:`TrackMotion.Stay`."""
 
@@ -435,7 +436,7 @@ class Arrangement(EventModel):
         e = None
         max_idx = 499 if self._kw["version"] >= FLVersion(12, 9, 1) else 198
 
-        if ArrangementID.Playlist in self.events:
+        if ArrangementID.Playlist in self.events.ids:
             e = cast(PlaylistEvent, self.events.first(ArrangementID.Playlist))
 
         for track_idx, ed in enumerate(self.events.divide(TrackID.Data, *TrackID)):
@@ -534,7 +535,7 @@ class Arrangements(EventModel, ModelCollection[Arrangement]):
 
         yield from (
             Arrangement(ed, **self._kw)
-            for ed in self.events.subdicts(select, len(self))
+            for ed in self.events.subtrees(select, len(self))
         )
 
     def __len__(self):
@@ -543,7 +544,7 @@ class Arrangements(EventModel, ModelCollection[Arrangement]):
         Raises:
             NoModelsFound: When no arrangements are found.
         """
-        if ArrangementID.New not in self.events:
+        if ArrangementID.New not in self.events.ids:
             raise NoModelsFound
         return self.events.count(ArrangementID.New)
 
@@ -558,7 +559,7 @@ class Arrangements(EventModel, ModelCollection[Arrangement]):
             ModelNotFound: When the underlying event value points to an
                 invalid arrangement index.
         """
-        if ArrangementsID.Current in self.events:
+        if ArrangementsID.Current in self.events.ids:
             event = self.events.first(ArrangementsID.Current)
             index = event.value
             try:

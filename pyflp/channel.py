@@ -32,8 +32,8 @@ import construct_typed as ct
 from ._descriptors import (
     EventProp,
     FlagProp,
-    KWProp,
     LinearMusical,
+    List2Tuple,
     Log2,
     LogNormal,
     MusicalTime,
@@ -203,12 +203,25 @@ class LevelAdjustsEvent(StructEventBase):
     ).compile()
 
 
+class FilterType(ct.EnumBase):
+    FastLP = 0
+    LP = 1
+    BP = 2
+    HP = 3
+    BS = 4
+    LPx2 = 5
+    SVFLP = 6
+    SVFLPx2 = 7
+
+
 class LevelsEvent(StructEventBase):
     STRUCT = c.Struct(
         "pan" / c.Optional(c.Int32sl),  # 4
         "volume" / c.Optional(c.Int32ul),  # 8
         "pitch_shift" / c.Optional(c.Int32sl),  # 12
-        "_u1" / c.Optional(c.Bytes(12)),  # 24
+        "filter.mod_x" / c.Optional(c.Int32ul),  # 16
+        "filter.mod_y" / c.Optional(c.Int32ul),  # 20
+        "filter.type" / c.Optional(StdEnum[FilterType](c.Int32ul)),  # 24
     ).compile()
 
 
@@ -260,7 +273,8 @@ class ParametersEvent(StructEventBase):
         "_u1" / c.Optional(c.Bytes(9)),  # 9
         "fx.remove_dc" / c.Optional(c.Flag),  # 10
         "delay.flags" / c.Optional(StdEnum[_DelayFlags](c.Int8ul)),  # 11
-        "_u2" / c.Optional(c.Bytes(29)),  # 40
+        "keyboard.main_pitch" / c.Optional(c.Flag),  # 12
+        "_u2" / c.Optional(c.Bytes(28)),  # 40
         "arp.direction" / c.Optional(StdEnum[ArpDirection](c.Int32ul)),  # 44
         "arp.range" / c.Optional(c.Int32ul),  # 48
         "arp.chord" / c.Optional(c.Int32ul),  # 52
@@ -269,9 +283,11 @@ class ParametersEvent(StructEventBase):
         "arp.slide" / c.Optional(c.Flag),  # 61
         "_u3" / c.Optional(c.Bytes(1)),  # 62
         "time.full_porta" / c.Optional(c.Flag),  # 63
-        "_u4" / c.Optional(c.Bytes(1)),  # 64
+        "keyboard.add_root" / c.Optional(c.Flag),  # 64
         "time.gate" / c.Optional(c.Int16ul),  # 66
-        "_u5" / c.Optional(c.Bytes(14)),  # 80
+        "_u4" / c.Optional(c.Bytes(2)),  # 68
+        "keyboard.key_region" / c.Optional(List2Tuple(c.Int32ul[2])),  # 76
+        "_u5" / c.Optional(c.Bytes(4)),  # 80
         "fx.normalize" / c.Optional(c.Flag),  # 81
         "fx.inverted" / c.Optional(c.Flag),  # 82
         "_u6" / c.Optional(c.Bytes(1)),  # 83
@@ -284,9 +300,9 @@ class ParametersEvent(StructEventBase):
         "stretching.multiplier" / c.Optional(Log2(c.Int32sl, 10000)),  # 108
         "stretching.mode" / c.Optional(StdEnum[StretchMode](c.Int32sl)),  # 112
         "_u7" / c.Optional(c.Bytes(21)),  # 133
-        "fx.start" / LogNormal(c.Int16ul[2], (0, 61440)),  # 137
+        "fx.start" / c.Optional(LogNormal(c.Int16ul[2], (0, 61440))),  # 137
         "_u8" / c.Optional(c.Bytes(4)),  # 141
-        "fx.length" / LogNormal(c.Int16ul[2], (0, 61440)),  # 145
+        "fx.length" / c.Optional(LogNormal(c.Int16ul[2], (0, 61440))),  # 145
         "_u9" / c.Optional(c.Bytes(3)),  # 148
         "playback.start_offset" / c.Optional(c.Int32ul),  # 152
         "_u10" / c.Optional(c.Bytes(5)),  # 157
@@ -559,6 +575,22 @@ class Delay(EventModel, ModelReprMixin):
     """
 
 
+class Filter(EventModel, ModelReprMixin):
+    """Used by :class:`Sampler`.
+
+    ![](https://bit.ly/3zT5tAH)
+    """
+
+    mod_x = StructProp[int](ChannelID.Levels, prop="filter.mod_x")
+    """Filter cutoff. Min = 0. Max = 256. Defaults to maximum."""
+
+    mod_y = StructProp[int](ChannelID.Levels, prop="filter.mod_y")
+    """Filter resonance. Min = 0. Max = 256. Defaults to minimum."""
+
+    type = StructProp[FilterType](ChannelID.Levels, prop="filter.type")
+    """Defaults to :attr:`FilterType.FastLP`."""
+
+
 class LevelAdjusts(EventModel, ModelReprMixin):
     """Used by :class:`Layer`, :class:`Instrument` and :class:`Sampler`.
 
@@ -616,7 +648,7 @@ class Reverb(EventModel, ModelReprMixin):
 
     @property
     def type(self) -> ReverbType | None:
-        if ChannelID.Reverb in self.events:
+        if ChannelID.Reverb in self.events.ids:
             event = self.events.first(ChannelID.Reverb)
             return ReverbType.B if event.value >= ReverbType.B else ReverbType.A
 
@@ -635,12 +667,12 @@ class Reverb(EventModel, ModelReprMixin):
         |-----|-----|
         | 0   | 256 |
         """
-        if ChannelID.Reverb in self.events:
+        if ChannelID.Reverb in self.events.ids:
             return self.events.first(ChannelID.Reverb).value - self.type
 
     @mix.setter
     def mix(self, value: int):
-        if ChannelID.Reverb not in self.events:
+        if ChannelID.Reverb not in self.events.ids:
             raise PropertyCannotBeSet(ChannelID.Reverb)
 
         self.events.first(ChannelID.Reverb).value += value
@@ -1039,16 +1071,21 @@ class Keyboard(EventModel, ModelReprMixin):
     root_note = EventProp[int](ChannelID.RootNote, default=60)
     """Min - 0 (C0), Max - 131 (B10)."""
 
-    # main_pitch_enabled = StructProp[bool](ChannelID.Parameters)
-    # """Whether triggered note is affected by changes to `project.main_pitch`."""
+    main_pitch = StructProp[bool](ChannelID.Parameters, prop="keyboard.main_pitch")
+    """Whether triggered note is affected by changes to :attr:`Project.main_pitch`."""
 
-    # added_to_key = StructProp[bool](ChannelID.Parameters)
-    # """Whether root note should be added to triggered note instead of pitch.
-    #
-    # *New in FL Studio v3.4.0*.
-    # """
+    add_root = StructProp[bool](ChannelID.Parameters, prop="keyboard.add_root")
+    """Whether to add root note (instead of pitch) to triggered note.
 
-    # note_range: tuple[int] - Should be a 2-short or 2-byte tuple
+    Named as :guilabel:`Add to key`. Defaults to ``False``.
+
+    *New in FL Studio v3.4.0*.
+    """
+
+    key_region = StructProp[Tuple[int, int]](
+        ChannelID.Parameters, prop="keyboard.key_region"
+    )
+    """A `(start_note, end_note)` tuple representing the playable range."""
 
 
 class Playback(EventModel, ModelReprMixin):
@@ -1192,8 +1229,10 @@ class Channel(EventModel):
     enabled = EventProp[bool](ChannelID.IsEnabled)
     """![](https://bit.ly/3sbN8KU)"""
 
-    group = KWProp[DisplayGroup]()
-    """Display group / filter under which this channel is grouped."""
+    @property
+    def group(self) -> DisplayGroup:  # TODO Setter
+        """Display group / filter under which this channel is grouped."""
+        return self._kw["group"]
 
     icon = EventProp[int](PluginID.Icon)
     """Internal ID of the icon shown beside the ``display_name``.
@@ -1202,7 +1241,9 @@ class Channel(EventModel):
     """
 
     iid = EventProp[int](ChannelID.New)
-    keyboard = NestedProp(Keyboard, ChannelID.FineTune, ChannelID.RootNote)
+    keyboard = NestedProp(
+        Keyboard, ChannelID.FineTune, ChannelID.RootNote, ChannelID.Parameters
+    )
     """Located at the bottom of :menuselection:`Miscellaneous functions (page)`."""
 
     locked = EventProp[bool](ChannelID.IsLocked)
@@ -1231,11 +1272,11 @@ class Channel(EventModel):
         |-----|-------|---------|
         | 0   | 12800 | 6400    |
         """
-        if ChannelID.Levels in self.events:
+        if ChannelID.Levels in self.events.ids:
             return cast(LevelsEvent, self.events.first(ChannelID.Levels))["pan"]
 
         for id in (ChannelID._PanWord, ChannelID._PanByte):
-            if id in self.events:
+            if id in self.events.ids:
                 return self.events.first(id).value
 
     @pan.setter
@@ -1243,12 +1284,12 @@ class Channel(EventModel):
         if self.pan is None:
             raise PropertyCannotBeSet
 
-        if ChannelID.Levels in self.events:
+        if ChannelID.Levels in self.events.ids:
             cast(LevelsEvent, self.events.first(ChannelID.Levels))["pan"] = value
             return
 
         for id in (ChannelID._PanWord, ChannelID._PanByte):
-            if id in self.events:
+            if id in self.events.ids:
                 self.events.first(id).value = value
 
     @property
@@ -1259,11 +1300,11 @@ class Channel(EventModel):
         |-----|-------|---------|
         | 0   | 12800 | 10000   |
         """
-        if ChannelID.Levels in self.events:
+        if ChannelID.Levels in self.events.ids:
             return cast(LevelsEvent, self.events.first(ChannelID.Levels))["volume"]
 
         for id in (ChannelID._VolWord, ChannelID._VolByte):
-            if id in self.events:
+            if id in self.events.ids:
                 return self.events.first(id).value
 
     @volume.setter
@@ -1271,12 +1312,12 @@ class Channel(EventModel):
         if self.volume is None:
             raise PropertyCannotBeSet
 
-        if ChannelID.Levels in self.events:
+        if ChannelID.Levels in self.events.ids:
             cast(LevelsEvent, self.events.first(ChannelID.Levels))["volume"] = value
             return
 
         for id in (ChannelID._VolWord, ChannelID._VolByte):
-            if id in self.events:
+            if id in self.events.ids:
                 self.events.first(id).value = value
 
     # If the channel is not zipped, underlying event is not stored.
@@ -1286,7 +1327,7 @@ class Channel(EventModel):
 
         ![](https://bit.ly/3S2imib)
         """
-        if ChannelID.Zipped in self.events:
+        if ChannelID.Zipped in self.events.ids:
             return self.events.first(ChannelID.Zipped).value
         return False
 
@@ -1316,7 +1357,7 @@ class Automation(Channel, ModelCollection[AutomationPoint]):
 
     def __iter__(self) -> Iterator[AutomationPoint]:
         """Iterator over the automation points inside the automation clip."""
-        if ChannelID.Automation in self.events:
+        if ChannelID.Automation in self.events.ids:
             event = cast(AutomationEvent, self.events.first(ChannelID.Automation))
             for i, point in enumerate(event["points"]):
                 yield AutomationPoint(point, i, event)
@@ -1349,8 +1390,8 @@ class Layer(Channel, ModelCollection[Channel]):
         raise ChannelNotFound(i)
 
     def __iter__(self) -> Iterator[Channel]:
-        if ChannelID.Children in self.events:
-            for event in self.events[ChannelID.Children]:
+        if ChannelID.Children in self.events.ids:
+            for event in self.events.get(ChannelID.Children):
                 yield self._kw["channels"][event.value]
 
     def __len__(self):
@@ -1409,7 +1450,7 @@ class _SamplerInstrument(Channel):
 
         :menuselection:`Miscellaneous functions -> Tracking`
         """
-        if ChannelID.Tracking in self.events:
+        if ChannelID.Tracking in self.events.ids:
             tracking = [Tracking(e) for e in self.events.separate(ChannelID.Tracking)]
             return dict(zip(("volume", "keyboard"), tracking))
 
@@ -1445,9 +1486,11 @@ class Sampler(_SamplerInstrument):
 
         :menuselection:`Envelope / instruement settings`
         """
-        if ChannelID.EnvelopeLFO in self.events:
+        if ChannelID.EnvelopeLFO in self.events.ids:
             envs = [Envelope(e) for e in self.events.separate(ChannelID.EnvelopeLFO)]
             return dict(zip(EnvelopeName.__args__, envs))  # type: ignore
+
+    filter = NestedProp(Filter, ChannelID.Levels)
 
     fx = NestedProp(
         FX,
@@ -1472,7 +1515,7 @@ class Sampler(_SamplerInstrument):
 
         :menuselection:`Envelope / instruement settings (page)`
         """
-        if ChannelID.EnvelopeLFO in self.events:
+        if ChannelID.EnvelopeLFO in self.events.ids:
             lfos = [SamplerLFO(e) for e in self.events.separate(ChannelID.EnvelopeLFO)]
             return dict(zip(LFOName.__args__, lfos))  # type: ignore
 
@@ -1483,7 +1526,7 @@ class Sampler(_SamplerInstrument):
         Raises:
             PropertyCannotBeSet: When a `ChannelID.Levels` event is not found.
         """
-        if ChannelID.Levels in self.events:
+        if ChannelID.Levels in self.events.ids:
             return cast(LevelsEvent, self.events.first(ChannelID.Levels))["pitch_shift"]
 
     @pitch_shift.setter
@@ -1508,7 +1551,7 @@ class Sampler(_SamplerInstrument):
 
         Contains the string ``%FLStudioFactoryData%`` for stock samples.
         """
-        if ChannelID.SamplePath in self.events:
+        if ChannelID.SamplePath in self.events.ids:
             return pathlib.Path(self.events.first(ChannelID.SamplePath).value)
 
     @sample_path.setter
@@ -1552,10 +1595,12 @@ class ChannelRack(EventModel, ModelCollection[Channel]):
     def __iter__(self) -> Iterator[Channel]:
         """Yields all the channels found in the project."""
         ch_dict: dict[int, Channel] = {}
+        groups = [DisplayGroup(et) for et in self.events.separate(DisplayGroupID.Name)]
 
         for et in self.events.divide(ChannelID.New, *ChannelID, *PluginID):
             iid = et.first(ChannelID.New).value
             typ = et.first(ChannelID.Type).value
+            groupnum = et.first(ChannelID.GroupNum).value
 
             # pylint: disable=redefined-outer-name
             ct = Channel  # prevent type error and logic failure below
@@ -1574,7 +1619,7 @@ class ChannelRack(EventModel, ModelCollection[Channel]):
                     ct = Sampler
 
             if iid is not None:
-                cur_ch = ch_dict[iid] = ct(et, channels=ch_dict)
+                cur_ch = ch_dict[iid] = ct(et, channels=ch_dict, group=groups[groupnum])
                 yield cur_ch
 
     def __len__(self):
@@ -1583,7 +1628,7 @@ class ChannelRack(EventModel, ModelCollection[Channel]):
         Raises:
             NoModelsFound: No channels could be found in the project.
         """
-        if ChannelID.New not in self.events:
+        if ChannelID.New not in self.events.ids:
             raise NoModelsFound
         return self.events.count(ChannelID.New)
 

@@ -8,6 +8,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0a6] - 2022-11-19
+
+### Added
+
+- `Keyboard.main_pitch`, `Keyboard.add_root`, `Keyboard.key_region` [#92].
+- `Sampler.filter` and `Filter` [#99].
+
+### Changed
+
+- `Channel.group` becomes a read-only property (modify event to change channel group).
+- `PLItemBase.offsets` and its fields in `PlaylistEvent` are [float32](https://stackoverflow.com/a/74247360/)
+  Thanks to `chrslg` from Stackoverflow and @jubabrut.
+- `Track.height` returns an `str` of its percentage e.g. `100%`.
+- `Instrument.plugin` and `Slot.plugin` return `_PluginBase` for unimplemented
+  native plugins [#102].
+- Reimplemented `EventTree` to use a list and got a 10+% perf boost in unit tests.
+
+### Fixed
+
+- `Channel.group` remained unitialised [#100].
+- `Chanel.plugin` failed due to base class type parameter check [#101].
+
+### Removed
+
+- `Track.locked_height` as what this quantity stores is unknown to me yet.
+- Use of fixture factories in unittests [#74].
+
+[#74]: https://github.com/demberto/PyFLP/issues/74
+[#92]: https://github.com/demberto/PyFLP/issues/92
+[#99]: https://github.com/demberto/PyFLP/issues/99
+[#100]: https://github.com/demberto/PyFLP/issues/100
+[#101]: https://github.com/demberto/PyFLP/issues/101
+[#102]: https://github.com/demberto/PyFLP/issues/102
+
 ## [2.0.0a5.post] - 2022-10-31
 
 ### Changed
@@ -554,6 +588,8 @@ Same as in 0.1.1
 - `flpinfo` doesn't output correctly sometimes due to long strings.
 - Extraneous data dumped sometimes by `InsertSlotEvent.Plugin`, why this is caused is not known.
 
+[2.0.0a6]: https://github.com/demberto/PyFLP/compare/v2.0.0a5.post...v2.0.0a6
+[2.0.0a5.post]: https://github.com/demberto/PyFLP/compare/v2.0.0a5...v2.0.0a5.post
 [2.0.0a5]: https://github.com/demberto/PyFLP/compare/v2.0.0a4...v2.0.0a5
 [2.0.0a4]: https://github.com/demberto/PyFLP/compare/v2.0.0a3...v2.0.0a4
 [2.0.0a3]: https://github.com/demberto/PyFLP/compare/v2.0.0a2...v2.0.0a3

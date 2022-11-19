@@ -58,7 +58,7 @@ from .plugin import PluginID, get_event_by_internal_name
 from .project import VALID_PPQS, FileFormat, Project, ProjectID
 
 __all__ = ["parse", "save"]
-__version__ = "2.0.0a5.post"
+__version__ = "2.0.0a6"
 
 if sys.version_info < (3, 11):  # https://github.com/Bobronium/fastenum/issues/2
     import fastenum
@@ -160,7 +160,7 @@ def parse(file: pathlib.Path | str) -> Project:
                 if id == PluginID.InternalName:
                     plug_name = event_type(id, value).value
             elif id == PluginID.Data and plug_name is not None:
-                event_type = get_event_by_internal_name(plug_name) or UnknownDataEvent
+                event_type = get_event_by_internal_name(plug_name)
             else:
                 event_type = UnknownDataEvent
 
@@ -195,7 +195,7 @@ def save(project: Project, file: pathlib.Path | str):
 
     project.events.insert(0, project.events.pop(ProjectID.FLVersion))
     events_size = 0
-    for event in project.events.all():
+    for event in project.events:
         events_size += event.size
         stream.write(bytes(event))
 

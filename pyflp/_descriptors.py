@@ -22,13 +22,14 @@ import enum
 import math
 import sys
 import warnings
-from typing import Any, List, NamedTuple, TypeVar, Union, overload
+from typing import Any, List, NamedTuple, Tuple, TypeVar, Union, overload
 
 if sys.version_info >= (3, 8):
     from typing import Protocol, final, runtime_checkable
 else:
     from typing_extensions import Protocol, final, runtime_checkable
 
+import construct as c
 import construct_typed as ct
 
 from ._events import AnyEvent, EventEnum, PODEventBase, StructEventBase
@@ -36,6 +37,8 @@ from ._models import DE, EMT_co, EventModel, ItemModel, ModelBase
 from .exceptions import PropertyCannotBeSet
 
 T = TypeVar("T")
+U = TypeVar("U")
+ET = TypeVar("ET", bound=Union[ct.EnumBase, enum.IntFlag])
 T_co = TypeVar("T_co", covariant=True)
 
 
@@ -43,7 +46,7 @@ T_co = TypeVar("T_co", covariant=True)
 class ROProperty(Protocol[T_co]):
     """Protocol for a read-only descriptor."""
 
-    def __get__(self, instance: Any, owner: Any = None) -> T_co | None:
+    def __get__(self, ins: Any, owner: Any = None) -> T_co | None:
         ...
 
 
@@ -51,7 +54,7 @@ class ROProperty(Protocol[T_co]):
 class RWProperty(ROProperty[T], Protocol):
     """Protocol for a read-write descriptor."""
 
-    def __set__(self, instance: Any, value: T):
+    def __set__(self, ins: Any, value: T):
         ...
 
 
@@ -73,26 +76,26 @@ class PropBase(abc.ABC, RWProperty[T]):
         self._readonly = readonly
 
     @overload
-    def _get_event(self, instance: ItemModel[DE]) -> ItemModel[DE]:
+    def _get_event(self, ins: ItemModel[DE]) -> ItemModel[DE]:
         ...
 
     @overload
-    def _get_event(self, instance: EventModel) -> AnyEvent | None:
+    def _get_event(self, ins: EventModel) -> AnyEvent | None:
         ...
 
-    def _get_event(self, instance: ItemModel[DE] | EventModel):
-        if isinstance(instance, ItemModel):
-            return instance
+    def _get_event(self, ins: ItemModel[DE] | EventModel):
+        if isinstance(ins, ItemModel):
+            return ins
 
         if not self._ids:
-            if len(instance.events) > 1:  # Prevent ambiguous situations
+            if len(ins.events) > 1:  # Prevent ambiguous situations
                 raise LookupError("Event ID not specified")
 
-            return tuple(instance.events.all())[0]
+            return tuple(ins.events)[0]
 
         for id in self._ids:
-            if id in instance.events:
-                return instance.events.first(id)
+            if id in ins.events:
+                return ins.events.first(id)
 
     @property
     def default(self) -> T | None:  # Configure version based defaults here
@@ -107,22 +110,22 @@ class PropBase(abc.ABC, RWProperty[T]):
         ...
 
     @final
-    def __get__(self, instance: Any, owner: Any = None) -> T | None:
+    def __get__(self, ins: Any, owner: Any = None) -> T | None:
         if owner is None:
             return NotImplemented
 
-        event = self._get_event(instance)
+        event = self._get_event(ins)
         if event is not None:
             return self._get(event)
 
         return self.default
 
     @final
-    def __set__(self, instance: Any, value: T):
+    def __set__(self, ins: Any, value: T):
         if self._readonly:
             raise PropertyCannotBeSet(*self._ids)
 
-        event = self._get_event(instance)
+        event = self._get_event(ins)
         if event is not None:
             self._set(event, value)
         else:
@@ -188,15 +191,15 @@ class KWProp(NamedPropMixin, RWProperty[T]):
     These values are passed to the class constructor as keyword arguments.
     """
 
-    def __get__(self, instance: ModelBase, owner: Any = None) -> T:
+    def __get__(self, ins: ModelBase, owner: Any = None) -> T:
         if owner is None:
             return NotImplemented
-        return instance._kw[self._prop]
+        return ins._kw[self._prop]
 
-    def __set__(self, instance: ModelBase, value: T):
-        if self._prop not in instance._kw:
+    def __set__(self, ins: ModelBase, value: T):
+        if self._prop not in ins._kw:
             raise KeyError(self._prop)
-        instance._kw[self._prop] = value
+        ins._kw[self._prop] = value
 
 
 class EventProp(PropBase[T]):
@@ -218,7 +221,7 @@ class NestedProp(ROProperty[EMT_co]):
         if owner is None:
             return NotImplemented
 
-        return self._type(ins.events.subdict(lambda e: e.id in self._ids))
+        return self._type(ins.events.subtree(lambda e: e.id in self._ids))
 
 
 class StructProp(PropBase[T], NamedPropMixin):
@@ -235,21 +238,31 @@ class StructProp(PropBase[T], NamedPropMixin):
         ev_or_ins[self._prop] = value
 
 
-ET = TypeVar("ET", bound=Union[ct.EnumBase, enum.IntFlag])
+SimpleAdapter = ct.Adapter[T, T, U, U]
+"""Duplicates type parameters for `construct.Adapter`."""
+
+
+class List2Tuple(SimpleAdapter[Any, Tuple[int, int]]):
+    def _decode(self, obj: c.ListContainer[int], *_: Any) -> Tuple[int, int]:
+        _1, _2 = tuple(obj)
+        return _1, _2
+
+    def _encode(self, obj: Tuple[int, int], *_: Any) -> c.ListContainer[int]:
+        return c.ListContainer([*obj])
 
 
 class MusicalTime(NamedTuple):
     bars: int
-    """1 bar == 16 beats == 768 (internal representation)"""
+    """1 bar == 16 beats == 768 (internal representation)."""
 
     beats: int
-    """1 beat == 240 ticks == 48 (internal representation)"""
+    """1 beat == 240 ticks == 48 (internal representation)."""
 
     ticks: int
-    """5 ticks == 1 (internal representation)"""
+    """5 ticks == 1 (internal representation)."""
 
 
-class LinearMusical(ct.Adapter[int, int, MusicalTime, MusicalTime]):
+class LinearMusical(SimpleAdapter[int, MusicalTime]):
     def _encode(self, obj: MusicalTime, *_: Any) -> int:
         if obj.ticks % 5:
             warnings.warn("Ticks must be a multiple of 5", UserWarning)
@@ -262,7 +275,7 @@ class LinearMusical(ct.Adapter[int, int, MusicalTime, MusicalTime]):
         return MusicalTime(bars, beats, ticks=remainder * 5)
 
 
-class Log2(ct.Adapter[int, int, float, float]):
+class Log2(SimpleAdapter[int, float]):
     def __init__(self, subcon: Any, factor: int):
         super().__init__(subcon)
         self.factor = factor
@@ -302,7 +315,7 @@ class LogNormal(ct.Adapter[List[int], List[int], float, float]):
         return max(min(1.0, 2 ** (obj[0] / 2**12) / 2**15), 0.0)
 
 
-class StdEnum(ct.Adapter[int, int, ET, ET]):
+class StdEnum(SimpleAdapter[int, ET]):
     def _encode(self, obj: ET, *_: Any) -> int:
         return obj.value
 

@@ -227,13 +227,13 @@ class _InsertEQBandKW(TypedDict, total=False):
 
 
 class _InsertEQBandProp(NamedPropMixin, RWProperty[int]):
-    def __get__(self, instance: InsertEQBand, owner: Any = None) -> int | None:
+    def __get__(self, ins: InsertEQBand, owner: Any = None) -> int | None:
         if owner is None:
             return NotImplemented
-        return instance._kw[self._prop]["msg"]
+        return ins._kw[self._prop]["msg"]
 
-    def __set__(self, instance: InsertEQBand, value: int):
-        instance._kw[self._prop]["msg"] = value
+    def __set__(self, ins: InsertEQBand, value: int):
+        ins._kw[self._prop]["msg"] = value
 
 
 class InsertEQBand(ModelBase):
@@ -282,12 +282,12 @@ class _InsertEQProp(NamedPropMixin, ROProperty[InsertEQBand]):
         super().__init__()
         self._ids = ids
 
-    def __get__(self, instance: InsertEQ, owner: Any = None) -> InsertEQBand:
+    def __get__(self, ins: InsertEQ, owner: Any = None) -> InsertEQBand:
         if owner is None:
             return NotImplemented
 
         items: _InsertEQBandKW = {}
-        for id, param in cast(_InsertItems, instance._kw["params"]).own.items():
+        for id, param in cast(_InsertItems, ins._kw["params"]).own.items():
             if id == self._ids.freq:
                 items["freq"] = param
             elif id == self._ids.gain:
@@ -346,16 +346,16 @@ class _MixerParamProp(RWProperty[T]):
     def __init__(self, id: int):  # pylint: disable=super-init-not-called
         self._id = id
 
-    def __get__(self, instance: Insert, owner: object = None) -> T | None:
+    def __get__(self, ins: Insert, owner: object = None) -> T | None:
         if owner is None:
             return NotImplemented
 
-        for id, item in cast(_InsertItems, instance._kw["params"]).own.items():
+        for id, item in cast(_InsertItems, ins._kw["params"]).own.items():
             if id == self._id:
                 return item["msg"]
 
-    def __set__(self, instance: Insert, value: T):
-        for id, item in cast(_InsertItems, instance._kw["params"]).own.items():
+    def __set__(self, ins: Insert, value: T):
+        for id, item in cast(_InsertItems, ins._kw["params"]).own.items():
             if id == self._id:
                 item["msg"] = value
         raise PropertyCannotBeSet(self._id)  # type: ignore
@@ -457,12 +457,8 @@ class Insert(EventModel, ModelCollection[Slot]):
 
     def __iter__(self) -> Iterator[Slot]:
         """Iterator over the effect empty and used slots."""
-        index = 0
-        for ed in self.events.subdicts(
-            lambda e: e.id in (*SlotID, *PluginID), self._kw["max_slots"]
-        ):
-            yield Slot(ed, params=self._kw["params"][index])
-            index += 1
+        for idx, ed in enumerate(self.events.divide(SlotID.Index, *SlotID, *PluginID)):
+            yield Slot(ed, params=self._kw["params"].slots[idx])
 
     def __len__(self):
         try:
@@ -494,15 +490,17 @@ class Insert(EventModel, ModelCollection[Slot]):
 
         ![](https://bit.ly/3eLum9D)
         """
-        events = self.events.get(InsertID.Flags)
-        if events is not None:
-            event = cast(InsertFlagsEvent, events[0])
-            flags = _InsertFlags(event["flags"])
-            if _InsertFlags.DockMiddle in flags:
-                return InsertDock.Middle
-            if _InsertFlags.DockRight in flags:
-                return InsertDock.Right
-            return InsertDock.Left
+        try:
+            event = cast(InsertFlagsEvent, self.events.first(InsertID.Flags))
+        except KeyError:
+            return None
+
+        flags = _InsertFlags(event["flags"])
+        if _InsertFlags.DockMiddle in flags:
+            return InsertDock.Middle
+        if _InsertFlags.DockRight in flags:
+            return InsertDock.Right
+        return InsertDock.Left
 
     enabled = FlagProp(_InsertFlags.Enabled, InsertID.Flags)
     """Whether an insert in the mixer is enabled or disabled.
@@ -656,10 +654,10 @@ class Mixer(EventModel, ModelCollection[Insert]):
                 return True
 
         params: dict[int, _InsertItems] = {}
-        if MixerID.Params in self.events:
+        if MixerID.Params in self.events.ids:
             params = cast(MixerParamsEvent, self.events.first(MixerID.Params)).items
 
-        for i, ed in enumerate(self.events.subdicts(select, self.max_inserts)):
+        for i, ed in enumerate(self.events.subtrees(select, self.max_inserts)):
             if i in params:
                 yield Insert(
                     ed, index=i - 1, max_slots=self.max_slots, params=params[i]
@@ -673,7 +671,7 @@ class Mixer(EventModel, ModelCollection[Insert]):
         Raises:
             NoModelsFound: No inserts could be found.
         """
-        if InsertID.Flags not in self.events:
+        if InsertID.Flags not in self.events.ids:
             raise NoModelsFound
         return self.events.count(InsertID.Flags)
 
