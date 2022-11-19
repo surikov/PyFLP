@@ -195,7 +195,7 @@ def dump_flp(project: pyflp.Project):
 def dump(filepath: str):
     project = pyflp.parse(filepath)
     print("{")
-    print("	dump: " + json_string("v1.0.5"))
+    print("	dump: " + json_string("v1.01.0a6"))
     print("	, filepath: " + json_string(filepath))
     print("	, pyflp: " + json_string(pyflp.__version__))
     dump_flp(project)
