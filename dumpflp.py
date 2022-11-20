@@ -4,6 +4,8 @@ import datetime
 
 import pyflp
 
+debugLimit = 0
+
 
 def json_string(txt: any):
     if txt is None:
@@ -42,7 +44,7 @@ def json_date(dd: datetime):
         return '"' + dd.strftime("%Y.%d.%m %H:%M:%S") + '"'
 
 
-def dump_timemarker(delimiter: str, timemarker:pyflp.arrangement.TimeMarker):
+def dump_timemarker(delimiter: str, timemarker: pyflp.arrangement.TimeMarker):
     print("							" + delimiter + "{")
     print("								denominator: " + json_num(timemarker.denominator))
     print("								, name: " + json_string(timemarker.name))
@@ -51,38 +53,56 @@ def dump_timemarker(delimiter: str, timemarker:pyflp.arrangement.TimeMarker):
     print("								, type: " + json_string(timemarker.type))
     print("							}")
 
-def dump_track_item(delimiter: str, item:pyflp.arrangement.PLItemBase):
-    print("									"+delimiter+"{")
-    print("										data: "+ json_string(item))
+
+def dump_track_item(delimiter: str, item: pyflp.arrangement.PLItemBase):
+    print("									" + delimiter + "{")
+    print("										data: " + json_string(item))
     print("									}")
 
-def dump_track(delimiter: str, track:pyflp.arrangement.Track):
+
+def dump_track(delimiter: str, track: pyflp.arrangement.Track):
     print("							" + delimiter + "{")
     print("								name: " + json_string(track.name))
     print("								, enabled: " + json_bool(track.enabled))
     print("								, grouped: " + json_bool(track.grouped))
     print("								, items: [")
     delimiter = ""
+    counter = 0
     for item in track:
-        dump_track_item(delimiter,item)
-        delimiter =delimiter = ", "
+        counter = counter + 1
+        if counter > debugLimit and debugLimit > 0:
+            print("							...")
+            break
+        dump_track_item(delimiter, item)
+        delimiter = delimiter = ", "
     print("								]")
     print("							}")
+
 
 def dump_arrangement(delimiter: str, arrangement: pyflp.arrangement):
     print("					" + delimiter + "{")
     print("					name: " + json_string(arrangement.name))
     print("					, timemarkers: [")
     delimiter2 = ""
+    counter = 0
     for timemarker in arrangement.timemarkers:
-        dump_timemarker(delimiter2,timemarker)
+        counter = counter + 1
+        if counter > debugLimit and debugLimit > 0:
+            print("							...")
+            break
+        dump_timemarker(delimiter2, timemarker)
         delimiter2 = ", "
     print("						]")
     print("					, tracks: [")
     delimiter2 = ""
+    counter = 0
     for track in arrangement.tracks:
-        if len(track)>0:
-            dump_track(delimiter2,track)
+        counter = counter + 1
+        if counter > debugLimit and debugLimit > 0:
+            print("					...")
+            break
+        if len(track) > 0:
+            dump_track(delimiter2, track)
             delimiter2 = ", "
     print("						]")
     print("					}")
@@ -102,39 +122,59 @@ def dump_arrangements(project: pyflp.Project):
     print("			, arrangements_len: " + json_string(str(len(project.arrangements))))
     print("			, arrangements_items: [")
     delimiter = ""
+    counter = 0
     for arrangement in project.arrangements:
+        counter = counter + 1
+        if counter > debugLimit and debugLimit > 0:
+            print("					...")
+            break
         dump_arrangement(delimiter, arrangement)
         delimiter = ", "
     print("				]")
     print("			}")
 
-def dump_automation(delimiter: str, automation:pyflp.channel.Automation):
+
+def dump_automation(delimiter: str, automation: pyflp.channel.Automation):
     print("					" + delimiter + "{name: " + json_string(automation) + "}")
 
-def dump_channel(delimiter: str, channel:pyflp.channel):
-     print("					" + delimiter + "{name: " + json_string(channel.name) + "}")
+
+def dump_channel(delimiter: str, channel: pyflp.channel):
+    print("					" + delimiter + "{name: " + json_string(channel.name) + "}")
+
 
 def dump_channel_rack(project: pyflp.Project):
     print("		, channel_rack: {")
 
     print("			automations: [")
     delimiter = ""
+    counter = 0
     for automation in project.channels.automations:
-        dump_automation(delimiter,automation)
+        counter = counter + 1
+        if counter > debugLimit and debugLimit > 0:
+            print("					...")
+            break
+        dump_automation(delimiter, automation)
         delimiter = ", "
     print("				]")
     print("			, fit_to_steps: " + json_num(project.channels.fit_to_steps))
     print("			, height: " + json_num(project.channels.height))
     print("			, channels: [")
     delimiter = ""
+    counter = 0
     for channel in project.channels:
-        dump_channel(delimiter,channel)
+        counter = counter + 1
+        if counter > debugLimit and debugLimit > 0:
+            print("					...")
+            break
+        dump_channel(delimiter, channel)
         delimiter = ", "
     print("				]")
     print("			}")
 
-def dump_insert(delimiter: str, insert:pyflp.mixer.Insert):
+
+def dump_insert(delimiter: str, insert: pyflp.mixer.Insert):
     print("					" + delimiter + "{insert: " + json_string(insert) + "}")
+
 
 def dump_mixer(project: pyflp.Project):
     print("		, mixer: {")
@@ -143,33 +183,75 @@ def dump_mixer(project: pyflp.Project):
     print("			, max_slots: " + json_num(project.mixer.max_slots))
     print("			, inserts: [")
     delimiter = ""
+    counter = 0
     for insert in project.mixer:
+        counter = counter + 1
+        if counter > debugLimit and debugLimit > 0:
+            print("					...")
+            break
         if insert.name is not None:
-            dump_insert(delimiter,insert)
+            dump_insert(delimiter, insert)
             delimiter = ", "
     print("				]")
     print("			}")
 
-def dump_pattern(delimiter: str, pattern:pyflp.pattern.Pattern):
-    print("					" + delimiter + "{pattern: " + json_string(pattern) + "}")
+
+def dump_controller(delimiter: str, controller: pyflp.pattern.Controller):
+    print(
+        "						"
+        + delimiter
+        + "{channel: "
+        + json_num(controller.channel)
+        + ", position: "
+        + json_num(controller.position)
+        + ", value: "
+        + json_num(controller.value)
+        + "}"
+    )
+
+
+def dump_pattern(delimiter: str, pattern: pyflp.pattern.Pattern):
+    print("					" + delimiter + "{name: " + json_string(pattern.name))
+    print("						, color: " + json_string(pattern.color))
+    print("						, length: " + json_num(pattern.length))
+    print("						, looped: " + json_bool(pattern.looped))
+    print("						, controllers: [")
+    delimiter2 = ""
+    counter = 0
+    for controller in pattern.controllers:
+        counter = counter + 1
+        if counter > debugLimit and debugLimit > 0:
+            print("						...")
+            break
+        dump_controller(delimiter2, controller)
+        delimiter2 = ", "
+    print("							]")
+    print("						}")
+
 
 def dump_patterns(project: pyflp.Project):
     print("		, patterns: {")
     print("			play_cut_notes: " + json_bool(project.patterns.play_cut_notes))
     print("			, patterns: [")
     delimiter = ""
+    counter = 0
     for pattern in project.patterns:
-        dump_pattern(delimiter,pattern)
+        counter = counter + 1
+        if counter > debugLimit and debugLimit > 0:
+            print("					...")
+            break
+        dump_pattern(delimiter, pattern)
         delimiter = ", "
     print("				]")
     print("			}")
 
+
 def dump_flp(project: pyflp.Project):
     print("	, flp: {")
     print("		version: " + json_string(str(project.version)))
-    #dump_arrangements(project)
+    dump_arrangements(project)
     print("		, artists: " + json_string(project.artists))
-    #dump_channel_rack(project)
+    dump_channel_rack(project)
     print("		, comments: " + json_string(project.comments))
     print("		, created_on: " + json_date(project.created_on))
     print("		, data_path: " + json_string(project.data_path))
@@ -180,9 +262,9 @@ def dump_flp(project: pyflp.Project):
     print("		, looped: " + json_bool(project.looped))
     print("		, main_pitch: " + json_num(project.main_pitch))
     print("		, main_volume: " + json_num(project.main_volume))
-    #dump_mixer(project)
+    dump_mixer(project)
     print("		, pan_law: " + json_num(project.pan_law))
-    #dump_patterns(project)
+    dump_patterns(project)
     print("		, ppq: " + json_num(project.ppq))
     print("		, show_info: " + json_bool(project.show_info))
     print("		, tempo: " + json_num(project.tempo))
