@@ -7,9 +7,26 @@ import pyflp
 debugLimit = 0
 
 
+def float_to_str(f):
+    float_string = repr(f)
+    if "e" in float_string:  # detect scientific notation
+        digits, exp = float_string.split("e")
+        digits = digits.replace(".", "").replace("-", "")
+        exp = int(exp)
+        zero_padding = "0" * (
+            abs(int(exp)) - 1
+        )  # minus 1 for decimal point in the sci notation
+        sign = "-" if f < 0 else ""
+        if exp > 0:
+            float_string = "{}{}{}.0".format(sign, digits, zero_padding)
+        else:
+            float_string = "{}0.{}{}".format(sign, zero_padding, digits)
+    return float_string
+
+
 def json_string(txt: any):
     if txt is None:
-        return ""
+        return '""'
     else:
         rr = str(txt)
         rr = rr.replace("'", '"')
@@ -34,7 +51,7 @@ def json_num(nn):
     if nn is None:
         return "0"
     else:
-        return str(nn)
+        return float_to_str(nn)
 
 
 def json_date(dd: datetime):
@@ -172,8 +189,115 @@ def dump_channel_rack(project: pyflp.Project):
     print("			}")
 
 
+def dump_eq(eq: pyflp.mixer.Insert.eq):
+    print(
+        "						, eq: high: {freq: "
+        + json_num(eq.high.freq)
+        + ", gain: "
+        + json_num(eq.high.gain)
+        + ", reso: "
+        + json_num(eq.high.reso)
+        + "}"
+    )
+    print(
+        "							,mid: {freq: "
+        + json_num(eq.mid.freq)
+        + ", gain: "
+        + json_num(eq.mid.gain)
+        + ", reso: "
+        + json_num(eq.mid.reso)
+        + "}"
+    )
+    print(
+        "							,low: {freq: "
+        + json_num(eq.low.freq)
+        + ", gain: "
+        + json_num(eq.low.gain)
+        + ", reso: "
+        + json_num(eq.low.reso)
+        + "}"
+    )
+    print("							}")
+
+
+def dump_routes(insert: pyflp.mixer.Insert):
+    print("						, routes: [")
+    delimiter = ""
+    counter = 0
+    for route in insert.routes:
+        counter = counter + 1
+        if counter > debugLimit and debugLimit > 0:
+            print("							...")
+            break
+        print("							" + delimiter + json_num(route))
+        delimiter = ", "
+    print("							]")
+
+
+def dump_remoteControllers(slot: pyflp.mixer.Slot):
+    controllers = None
+    try:
+        controllers = slot.controllers
+    except KeyError:
+        controllers = None
+    print("								, controllers: [")
+    if controllers is not None:
+        delimiter = ""
+        counter = 0
+        for remoteController in controllers:
+            counter = counter + 1
+            if counter > debugLimit and debugLimit > 0:
+                print("								...")
+                break
+            print("										" + delimiter + json_string(remoteController))
+            delimiter = ", "
+    print("									]")
+
+
+def dump_slots(insert: pyflp.mixer.Insert):
+    print("						, slots: [")
+    delimiter = ""
+    counter = 0
+    for slot in insert:
+        counter = counter + 1
+        if counter > debugLimit and debugLimit > 0:
+            print("							...")
+            break
+        print("							" + delimiter + "{color: " + json_string(slot.color))
+        # dump_remoteControllers(slot)
+        print("								, icon: " + json_num(slot.icon))
+        print("								, index: " + json_num(slot.index))
+        print("								, internal_name: " + json_string(slot.internal_name))
+        # print("								, mix: " + json_num(slot.mix))
+        print("								, name: " + json_string(slot.name))
+        print("								, plugin: " + json_string(slot.plugin))
+        print("								}")
+        delimiter = ", "
+    print("							]")
+
+
 def dump_insert(delimiter: str, insert: pyflp.mixer.Insert):
     print("					" + delimiter + "{insert: " + json_string(insert) + "}")
+    print("						bypassed: " + json_bool(insert.bypassed))
+    print("						, channels_swapped: " + json_bool(insert.channels_swapped))
+    print("						, color: " + json_string(insert.color))
+    print("						, dock: " + json_string(insert.dock))
+    print("						, enabled: " + json_bool(insert.enabled))
+    dump_eq(insert.eq)
+    print("						, icon: " + json_num(insert.icon))
+    print("						, input: " + json_num(insert.input))
+    print("						, is_solo: " + json_bool(insert.is_solo))
+    print("						, locked: " + json_bool(insert.locked))
+    print("						, name: " + json_string(insert.name))
+    print("						, output: " + json_num(insert.output))
+    print("						, pan: " + json_num(insert.pan))
+    print("						, polarity_reversed: " + json_bool(insert.polarity_reversed))
+    dump_routes(insert)
+    print("						, separator_shown: " + json_bool(insert.separator_shown))
+    print("						, stereo_separation: " + json_num(insert.stereo_separation))
+    print("						, volume: " + json_num(insert.volume))
+    dump_slots(insert)
+    print("						}")
 
 
 def dump_mixer(project: pyflp.Project):
@@ -185,11 +309,11 @@ def dump_mixer(project: pyflp.Project):
     delimiter = ""
     counter = 0
     for insert in project.mixer:
-        counter = counter + 1
-        if counter > debugLimit and debugLimit > 0:
-            print("					...")
-            break
         if insert.name is not None:
+            counter = counter + 1
+            if counter > debugLimit and debugLimit > 0:
+                print("					...")
+                break
             dump_insert(delimiter, insert)
             delimiter = ", "
     print("				]")
@@ -198,7 +322,7 @@ def dump_mixer(project: pyflp.Project):
 
 def dump_controller(delimiter: str, controller: pyflp.pattern.Controller):
     print(
-        "						"
+        "							"
         + delimiter
         + "{channel: "
         + json_num(controller.channel)
@@ -206,6 +330,42 @@ def dump_controller(delimiter: str, controller: pyflp.pattern.Controller):
         + json_num(controller.position)
         + ", value: "
         + json_num(controller.value)
+        + "}"
+    )
+
+
+def dump_note(delimiter: str, note: pyflp.pattern.Note):
+    print(
+        "							"
+        + delimiter
+        + "{fine_pitch: "
+        + json_num(note.fine_pitch)
+        + ", group: "
+        + json_num(note.group)
+        + ", key: "
+        + json_string(note.key)
+        + ", length: "
+        + json_num(note.length)
+        + ", midi_channel: "
+        + json_num(note.midi_channel)
+        + ", mod_x: "
+        + json_num(note.mod_x)
+        + ", mod_y: "
+        + json_num(note.mod_y)
+    )
+    print(
+        "										, pan: "
+        + json_num(note.pan)
+        + ", position: "
+        + json_num(note.position)
+        + ", rack_channel: "
+        + json_num(note.rack_channel)
+        + ", release: "
+        + json_num(note.release)
+        + ", slide: "
+        + json_bool(note.slide)
+        + ", velocity: "
+        + json_num(note.velocity)
         + "}"
     )
 
@@ -224,6 +384,17 @@ def dump_pattern(delimiter: str, pattern: pyflp.pattern.Pattern):
             print("						...")
             break
         dump_controller(delimiter2, controller)
+        delimiter2 = ", "
+    print("							]")
+    print("						, notes: [")
+    delimiter2 = ""
+    counter = 0
+    for note in pattern:
+        counter = counter + 1
+        if counter > debugLimit and debugLimit > 0:
+            print("						...")
+            break
+        dump_note(delimiter2, note)
         delimiter2 = ", "
     print("							]")
     print("						}")
@@ -249,9 +420,9 @@ def dump_patterns(project: pyflp.Project):
 def dump_flp(project: pyflp.Project):
     print("	, flp: {")
     print("		version: " + json_string(str(project.version)))
-    dump_arrangements(project)
+    # dump_arrangements(project)
     print("		, artists: " + json_string(project.artists))
-    dump_channel_rack(project)
+    # dump_channel_rack(project)
     print("		, comments: " + json_string(project.comments))
     print("		, created_on: " + json_date(project.created_on))
     print("		, data_path: " + json_string(project.data_path))
@@ -264,7 +435,7 @@ def dump_flp(project: pyflp.Project):
     print("		, main_volume: " + json_num(project.main_volume))
     dump_mixer(project)
     print("		, pan_law: " + json_num(project.pan_law))
-    dump_patterns(project)
+    # dump_patterns(project)
     print("		, ppq: " + json_num(project.ppq))
     print("		, show_info: " + json_bool(project.show_info))
     print("		, tempo: " + json_num(project.tempo))
