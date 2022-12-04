@@ -1,10 +1,11 @@
 import sys
-import importlib.util
+
+# import importlib.util
 import datetime
 
 import pyflp
 
-debugLimit = 0
+debugLimit = 3
 
 
 def float_to_str(f):
@@ -13,9 +14,7 @@ def float_to_str(f):
         digits, exp = float_string.split("e")
         digits = digits.replace(".", "").replace("-", "")
         exp = int(exp)
-        zero_padding = "0" * (
-            abs(int(exp)) - 1
-        )  # minus 1 for decimal point in the sci notation
+        zero_padding = "0" * (abs(int(exp)) - 1)  # minus 1 for decimal point in the sci notation
         sign = "-" if f < 0 else ""
         if exp > 0:
             float_string = "{}{}{}.0".format(sign, digits, zero_padding)
@@ -29,10 +28,11 @@ def json_string(txt: any):
         return '""'
     else:
         rr = str(txt)
-        rr = rr.replace("'", '"')
+        rr = rr.replace("\\", "/")
+        rr = rr.replace("\"", "'")
         rr = rr.replace("\n", " ")
         rr = rr.replace("\r", " ")
-        rr = rr.replace("\\", "/")
+        
         # rr=rr.replace("2", "8")
         return '"' + rr + '"'
 
@@ -128,13 +128,8 @@ def dump_arrangement(delimiter: str, arrangement: pyflp.arrangement):
 def dump_arrangements(project: pyflp.Project):
     print("		, arrangements: {")
     print("			loop_pos: " + json_num(project.arrangements.loop_pos))
-    print(
-        "			, time_signature_beat: "
-        + json_num(project.arrangements.time_signature.beat)
-    )
-    print(
-        "			, time_signature_num: " + json_num(project.arrangements.time_signature.num)
-    )
+    print("			, time_signature_beat: " + json_num(project.arrangements.time_signature.beat))
+    print("			, time_signature_num: " + json_num(project.arrangements.time_signature.num))
     print("			, max_tracks: " + json_num(project.arrangements.max_tracks))
     print("			, arrangements_len: " + json_string(str(len(project.arrangements))))
     print("			, arrangements_items: [")
@@ -152,11 +147,80 @@ def dump_arrangements(project: pyflp.Project):
 
 
 def dump_automation(delimiter: str, automation: pyflp.channel.Automation):
-    print("					" + delimiter + "{name: " + json_string(automation) + "}")
+    print("				" + delimiter + "{")
+    print("					" + "color: " + json_string(automation.color))
+    print("					" + ", name: " + json_string(automation.name))
+    print("					" + ", enabled: " + json_bool(automation.enabled))
+    print("					" + ", lfo: " + json_string(automation.lfo))
+    print("					, points: [")
+    delimiter2 = ""
+    counter = 0
+    for point in automation:
+        counter = counter + 1
+        if counter > debugLimit and debugLimit > 0:
+            print("						...")
+            break
+        print("						" + delimiter2 + "{position: " + json_num(point.position) + ", tension: " + json_num(point.tension) + ", value: " + json_num(point.value) + "}")
+        delimiter2 = ", "
+    print("						]")
+    print("					}")
 
 
-def dump_channel(delimiter: str, channel: pyflp.channel):
-    print("					" + delimiter + "{name: " + json_string(channel.name) + "}")
+def dump_channel(delimiter: str, channel: pyflp.channel.Channel):
+    print("					" + delimiter + "{")
+    print("						color: " + json_string(channel.color))
+    print("						, name: " + json_string(channel.name))
+    print("						, display_name: " + json_string(channel.display_name))
+    print("						, enabled: " + json_bool(channel.enabled))
+    print("						, group_name: " + json_string(channel.group.name))
+    print("						, icon: " + json_num(channel.icon))
+    print("						, iid: " + json_num(channel.iid))
+    print("						, internal_name: " + json_string(channel.internal_name))
+    print("						, keyboard: " + json_string(channel.keyboard))
+    print("						, name: " + json_string(channel.name))
+    print("						, pan: " + json_num(channel.pan))
+    print("						, volume: " + json_num(channel.volume))
+    print("						, zipped: " + json_bool(channel.zipped))
+    print("						}")
+
+
+def dump_layer(delimiter: str, layer: pyflp.channel.Layer):
+    print("					" + delimiter + "{name: " + json_string(layer) + "}")
+
+
+def dump_sampler(delimiter: str, sampler: pyflp.channel.Sampler):
+    print("					" + delimiter + "{")
+    print("						au_sample_rate: " + json_num(sampler.au_sample_rate))
+    print("						, content_declick_mode: " + json_string(sampler.content.declick_mode))
+    print("						, content_keep_on_disk: " + json_bool(sampler.content.keep_on_disk))
+    print("						, content_load_regions: " + json_bool(sampler.content.load_regions))
+    print("						, content_load_slices: " + json_bool(sampler.content.load_slices))
+    print("						, content_resample: " + json_bool(sampler.content.resample))
+    print("						, envelopes: [")
+    delimiter2 = ""
+    for envelope in sampler.envelopes:
+        endata = sampler.envelopes[envelope]
+        print("							" + delimiter2 + "{" + json_string(envelope) + ": {" 
+        + "amount: " + json_num(endata.amount) 
+        + ", attack: " + json_num(endata.attack) 
+        + ", attack_tension: " + json_num(endata.attack_tension) 
+        + ", decay: " + json_num(endata.decay) 
+        + ", decay_tension: " + json_num(endata.decay_tension) 
+        + ", enabled: " + json_bool(endata.enabled) 
+        + ", hold: " + json_num(endata.hold) 
+        + ", predelay: " + json_num(endata.predelay) 
+        + ", release: " + json_num(endata.release) 
+        + ", release_tension: " + json_num(endata.release_tension) 
+        + ", sustain: " + json_num(endata.sustain) 
+        + ", synced: " + json_bool(endata.synced) 
+        + "}}")
+        delimiter2 = ", "
+    print("							]")
+    print("						}")
+
+
+def dump_instrument(delimiter: str, instrument: pyflp.channel.Instrument):
+    print("					" + delimiter + "{name: " + json_string(instrument) + "}")
 
 
 def dump_channel_rack(project: pyflp.Project):
@@ -186,37 +250,47 @@ def dump_channel_rack(project: pyflp.Project):
         dump_channel(delimiter, channel)
         delimiter = ", "
     print("				]")
+    print("			, instruments: [")
+    delimiter = ""
+    counter = 0
+    for instrument in project.channels.instruments:
+        counter = counter + 1
+        if counter > debugLimit and debugLimit > 0:
+            print("					...")
+            break
+        dump_instrument(delimiter, instrument)
+        delimiter = ", "
+    print("				]")
+    print("			, layers: [")
+    delimiter = ""
+    counter = 0
+    for layer in project.channels.layers:
+        counter = counter + 1
+        if counter > debugLimit and debugLimit > 0:
+            print("					...")
+            break
+        dump_layer(delimiter, layer)
+        delimiter = ", "
+    print("				]")
+    print("			, samplers: [")
+    delimiter = ""
+    counter = 0
+    for sampler in project.channels.samplers:
+        counter = counter + 1
+        if counter > debugLimit and debugLimit > 0:
+            print("					...")
+            break
+        dump_sampler(delimiter, sampler)
+        delimiter = ", "
+    print("				]")
+    print("			, swing: " + json_num(project.channels.swing))
     print("			}")
 
 
 def dump_eq(eq: pyflp.mixer.Insert.eq):
-    print(
-        "						, eq: high: {freq: "
-        + json_num(eq.high.freq)
-        + ", gain: "
-        + json_num(eq.high.gain)
-        + ", reso: "
-        + json_num(eq.high.reso)
-        + "}"
-    )
-    print(
-        "							,mid: {freq: "
-        + json_num(eq.mid.freq)
-        + ", gain: "
-        + json_num(eq.mid.gain)
-        + ", reso: "
-        + json_num(eq.mid.reso)
-        + "}"
-    )
-    print(
-        "							,low: {freq: "
-        + json_num(eq.low.freq)
-        + ", gain: "
-        + json_num(eq.low.gain)
-        + ", reso: "
-        + json_num(eq.low.reso)
-        + "}"
-    )
+    print("						, eq: high: {freq: " + json_num(eq.high.freq) + ", gain: " + json_num(eq.high.gain) + ", reso: " + json_num(eq.high.reso) + "}")
+    print("							,mid: {freq: " + json_num(eq.mid.freq) + ", gain: " + json_num(eq.mid.gain) + ", reso: " + json_num(eq.mid.reso) + "}")
+    print("							,low: {freq: " + json_num(eq.low.freq) + ", gain: " + json_num(eq.low.gain) + ", reso: " + json_num(eq.low.reso) + "}")
     print("							}")
 
 
@@ -321,53 +395,12 @@ def dump_mixer(project: pyflp.Project):
 
 
 def dump_controller(delimiter: str, controller: pyflp.pattern.Controller):
-    print(
-        "							"
-        + delimiter
-        + "{channel: "
-        + json_num(controller.channel)
-        + ", position: "
-        + json_num(controller.position)
-        + ", value: "
-        + json_num(controller.value)
-        + "}"
-    )
+    print("							" + delimiter + "{channel: " + json_num(controller.channel) + ", position: " + json_num(controller.position) + ", value: " + json_num(controller.value) + "}")
 
 
 def dump_note(delimiter: str, note: pyflp.pattern.Note):
-    print(
-        "							"
-        + delimiter
-        + "{fine_pitch: "
-        + json_num(note.fine_pitch)
-        + ", group: "
-        + json_num(note.group)
-        + ", key: "
-        + json_string(note.key)
-        + ", length: "
-        + json_num(note.length)
-        + ", midi_channel: "
-        + json_num(note.midi_channel)
-        + ", mod_x: "
-        + json_num(note.mod_x)
-        + ", mod_y: "
-        + json_num(note.mod_y)
-    )
-    print(
-        "										, pan: "
-        + json_num(note.pan)
-        + ", position: "
-        + json_num(note.position)
-        + ", rack_channel: "
-        + json_num(note.rack_channel)
-        + ", release: "
-        + json_num(note.release)
-        + ", slide: "
-        + json_bool(note.slide)
-        + ", velocity: "
-        + json_num(note.velocity)
-        + "}"
-    )
+    print("							" + delimiter + "{fine_pitch: " + json_num(note.fine_pitch) + ", group: " + json_num(note.group) + ", key: " + json_string(note.key) + ", length: " + json_num(note.length) + ", midi_channel: " + json_num(note.midi_channel) + ", mod_x: " + json_num(note.mod_x) + ", mod_y: " + json_num(note.mod_y))
+    print("										, pan: " + json_num(note.pan) + ", position: " + json_num(note.position) + ", rack_channel: " + json_num(note.rack_channel) + ", release: " + json_num(note.release) + ", slide: " + json_bool(note.slide) + ", velocity: " + json_num(note.velocity) + "}")
 
 
 def dump_pattern(delimiter: str, pattern: pyflp.pattern.Pattern):
@@ -422,7 +455,7 @@ def dump_flp(project: pyflp.Project):
     print("		version: " + json_string(str(project.version)))
     # dump_arrangements(project)
     print("		, artists: " + json_string(project.artists))
-    # dump_channel_rack(project)
+    dump_channel_rack(project)
     print("		, comments: " + json_string(project.comments))
     print("		, created_on: " + json_date(project.created_on))
     print("		, data_path: " + json_string(project.data_path))
@@ -433,7 +466,7 @@ def dump_flp(project: pyflp.Project):
     print("		, looped: " + json_bool(project.looped))
     print("		, main_pitch: " + json_num(project.main_pitch))
     print("		, main_volume: " + json_num(project.main_volume))
-    dump_mixer(project)
+    # dump_mixer(project)
     print("		, pan_law: " + json_num(project.pan_law))
     # dump_patterns(project)
     print("		, ppq: " + json_num(project.ppq))
@@ -448,7 +481,7 @@ def dump_flp(project: pyflp.Project):
 def dump(filepath: str):
     project = pyflp.parse(filepath)
     print("{")
-    print("	dump: " + json_string("v1.01.0a6"))
+    print("	dumpflp: " + json_string("v1.01.0a6"))
     print("	, filepath: " + json_string(filepath))
     print("	, pyflp: " + json_string(pyflp.__version__))
     dump_flp(project)

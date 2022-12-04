@@ -1,0 +1,193 @@
+
+C:\sss\GitHub\PyFLPdump>rem good 
+
+C:\sss\GitHub\PyFLPdump>rem python dump.py "C:/sss/GitHub/PyFLP/tests/assets/FL 20.8.4.flp" 
+
+C:\sss\GitHub\PyFLPdump>rem python dump.py "C:/Program Files/Image-Line/FL Studio 20/Data/Demo projects/Song contests/Alex Krutev - Sea_2.flp" 
+
+C:\sss\GitHub\PyFLPdump>rem python dump.py "C:/Program Files/Image-Line/FL Studio 20/Data/Demo projects/Demo songs/Adam Szabo - One Day (Funky Mix)_2.flp" 
+
+C:\sss\GitHub\PyFLPdump>rem python dump.py "C:/Program Files/Image-Line/FL Studio 20/Data/Demo projects/Demo songs/Musata - Real Bass (Original Mix).flp" 
+
+C:\sss\GitHub\PyFLPdump>python dumpflp.py "C:/Program Files/Image-Line/FL Studio 20/Data/Demo projects/Demo songs/Raubana - LIFE_2.flp" 
+{
+	dumpflp: "v1.01.0a6"
+	, filepath: "C:/Program Files/Image-Line/FL Studio 20/Data/Demo projects/Demo songs/Raubana - LIFE_2.flp"
+	, pyflp: "2.0.0a6"
+	, flp: {
+		version: "20.8.4.2576"
+		, artists: "Dylan J. Raub (Raubana)"
+		, channel_rack: {
+			automations: [
+				{
+					color: "#7e8f8d"
+					, name: "Master Volume"
+					, enabled: true
+					, lfo: "AutomationLFO (amount=64)"
+					, points: [
+						{position: 0.0, tension: 0.0, value: 0.0}
+						, {position: 32.0, tension: 1.0, value: 0.800000011920929}
+						, {position: 576.0, tension: -0.5649996399879456, value: 0.800000011920929}
+						...
+						]
+					}
+				, {
+					color: "#558892"
+					, name: "Drum Low Pass"
+					, enabled: true
+					, lfo: "AutomationLFO (amount=64)"
+					, points: [
+						{position: 0.0, tension: 0.0, value: 0.5}
+						, {position: 96.0, tension: 0.0, value: 0.8529411554336548}
+						, {position: 96.00000095367432, tension: 0.0, value: 1.0}
+						...
+						]
+					}
+				, {
+					color: "#558892"
+					, name: "Drum High Pass"
+					, enabled: true
+					, lfo: "AutomationLFO (amount=64)"
+					, points: [
+						{position: 0.0, tension: 0.0, value: 1.0}
+						, {position: 32.0, tension: 0.0, value: 0.7894737124443054}
+						, {position: 88.0, tension: 0.0, value: 0.4444444477558136}
+						...
+						]
+					}
+					...
+				]
+			, fit_to_steps: 0
+			, height: 617
+			, channels: [
+					{
+						color: "#7e8f8d"
+						, name: "Master Volume"
+						, display_name: "Master Volume"
+						, enabled: true
+						, group_name: "Automation"
+						, icon: 0
+						, iid: 0
+						, internal_name: ""
+						, keyboard: "Keyboard (fine_tune=None, root_note=60, main_pitch=False, add_root=False, key_region=(0, 256))"
+						, name: "Master Volume"
+						, pan: 0
+						, volume: 12800
+						, zipped: false
+						}
+					, {
+						color: "#59a5b5"
+						, name: "Main Break"
+						, display_name: "Main Break"
+						, enabled: true
+						, group_name: "Audio"
+						, icon: 0
+						, iid: 1
+						, internal_name: "Fruity slicer"
+						, keyboard: "Keyboard (fine_tune=None, root_note=60, main_pitch=True, add_root=False, key_region=(0, 256))"
+						, name: "Main Break"
+						, pan: 6400
+						, volume: 12800
+						, zipped: false
+						}
+					, {
+						color: "#558892"
+						, name: "Break Break"
+						, display_name: "Break Break"
+						, enabled: true
+						, group_name: "Unsorted"
+						, icon: 0
+						, iid: 2
+						, internal_name: "Fruity slicer"
+						, keyboard: "Keyboard (fine_tune=None, root_note=60, main_pitch=True, add_root=False, key_region=(0, 256))"
+						, name: "Break Break"
+						, pan: 6400
+						, volume: 6250
+						, zipped: false
+						}
+					...
+				]
+			, instruments: [
+					{name: "Instrument (name='Main Break', iid=1)"}
+					, {name: "Instrument (name='Break Break', iid=2)"}
+					, {name: "Instrument (name='Soft Pads', iid=12)"}
+					...
+				]
+			, layers: [
+					{name: "Layer (name='Piano (Layer)', iid=18) (2 children)"}
+				]
+			, samplers: [
+					{
+						au_sample_rate: 0
+						, content_declick_mode: "DeclickMode.OutOnly"
+						, content_keep_on_disk: false
+						, content_load_regions: true
+						, content_load_slices: false
+						, content_resample: false
+						, envelopes: [
+							{"Panning": {amount: 0, attack: 20000, attack_tension: 0, decay: 30000, decay_tension: 0, enabled: false, hold: 20000, predelay: 100, release: 20000, release_tension: 0, sustain: 50, synced: false}}
+							, {"Volume": {amount: 0, attack: 20000, attack_tension: 0, decay: 30000, decay_tension: 0, enabled: false, hold: 20000, predelay: 100, release: 20000, release_tension: -101, sustain: 50, synced: false}}
+							, {"Mod X": {amount: 0, attack: 20000, attack_tension: 0, decay: 30000, decay_tension: 0, enabled: false, hold: 20000, predelay: 100, release: 20000, release_tension: 0, sustain: 50, synced: false}}
+							, {"Mod Y": {amount: 0, attack: 20000, attack_tension: 0, decay: 30000, decay_tension: 0, enabled: false, hold: 20000, predelay: 100, release: 20000, release_tension: 0, sustain: 50, synced: false}}
+							, {"Pitch": {amount: 0, attack: 20000, attack_tension: 0, decay: 30000, decay_tension: 0, enabled: false, hold: 20000, predelay: 100, release: 20000, release_tension: 0, sustain: 50, synced: false}}
+							]
+						}
+					, {
+						au_sample_rate: 0
+						, content_declick_mode: "DeclickMode.TransientNoBleeding"
+						, content_keep_on_disk: false
+						, content_load_regions: true
+						, content_load_slices: false
+						, content_resample: false
+						, envelopes: [
+							{"Panning": {amount: 0, attack: 20000, attack_tension: 0, decay: 30000, decay_tension: 0, enabled: false, hold: 20000, predelay: 100, release: 20000, release_tension: 0, sustain: 50, synced: false}}
+							, {"Volume": {amount: 0, attack: 20000, attack_tension: 0, decay: 30000, decay_tension: 0, enabled: false, hold: 20000, predelay: 100, release: 20000, release_tension: -101, sustain: 50, synced: false}}
+							, {"Mod X": {amount: 0, attack: 20000, attack_tension: 0, decay: 30000, decay_tension: 0, enabled: false, hold: 20000, predelay: 100, release: 20000, release_tension: 0, sustain: 50, synced: false}}
+							, {"Mod Y": {amount: 0, attack: 20000, attack_tension: 0, decay: 30000, decay_tension: 0, enabled: false, hold: 20000, predelay: 100, release: 20000, release_tension: 0, sustain: 50, synced: false}}
+							, {"Pitch": {amount: 0, attack: 20000, attack_tension: 0, decay: 30000, decay_tension: 0, enabled: false, hold: 20000, predelay: 100, release: 20000, release_tension: 0, sustain: 50, synced: false}}
+							]
+						}
+					, {
+						au_sample_rate: 0
+						, content_declick_mode: "DeclickMode.TransientNoBleeding"
+						, content_keep_on_disk: false
+						, content_load_regions: true
+						, content_load_slices: false
+						, content_resample: false
+						, envelopes: [
+							{"Panning": {amount: 0, attack: 20000, attack_tension: 0, decay: 30000, decay_tension: 0, enabled: false, hold: 20000, predelay: 100, release: 20000, release_tension: 0, sustain: 50, synced: false}}
+							, {"Volume": {amount: 0, attack: 20000, attack_tension: 0, decay: 30000, decay_tension: 0, enabled: false, hold: 20000, predelay: 100, release: 20000, release_tension: -101, sustain: 50, synced: false}}
+							, {"Mod X": {amount: 0, attack: 20000, attack_tension: 0, decay: 30000, decay_tension: 0, enabled: false, hold: 20000, predelay: 100, release: 20000, release_tension: 0, sustain: 50, synced: false}}
+							, {"Mod Y": {amount: 0, attack: 20000, attack_tension: 0, decay: 30000, decay_tension: 0, enabled: false, hold: 20000, predelay: 100, release: 20000, release_tension: 0, sustain: 50, synced: false}}
+							, {"Pitch": {amount: 0, attack: 20000, attack_tension: 0, decay: 30000, decay_tension: 0, enabled: false, hold: 20000, predelay: 100, release: 20000, release_tension: 0, sustain: 50, synced: false}}
+							]
+						}
+					...
+				]
+			, swing: 0
+			}
+		, comments: "Hello again!  I've found that with music we tend to put a little of ourselves into our works. Life has been a struggle for me lately, and as such I've also struggled to express the desired amount of energy I'd like from my songs. I made a compromise with this one: it's happy but also melancholy, high-energy but also chill.  I guess that's a pretty good description of life sometimes.  I'm really happy with the way this song turned out, and I hope you enjoy it :)   - Raubana  These drum breaks and samples came from the pack below. Loopmasters Shogun Audio Drum And Bass Vol 1  Special Thanks:  Image-Line - for making such a fun DAW and being such an awesome company. Scott Fisher - for putting up with my silliness and also being a generally awesome guy! Wagner Koop aka Arctic Spaceman - for always pushing me to keep making music and for being my very best friend. Loopmasters - for the FANTASTIC drum breaks and samples. Paul Kellett - for the piano preset. gol - for the 'Music Box' preset for Sytrus."
+		, created_on: "2015.19.02 11:39:40"
+		, data_path: "."
+		, format: 0
+		, genre: "Liquid Drum and Bass"
+		, licensed: true
+		, licensee: "zhoupengfei36732654"
+		, looped: true
+		, main_pitch: 0
+		, main_volume: 0
+		, pan_law: 0
+		, ppq: 96
+		, show_info: true
+		, tempo: 172.0
+		, time_spent: 67818
+		, title: "LIFE - by Raubana"
+		, url: "www.facebook.com/RaubanaOfficial"
+	}
+}
+
+C:\sss\GitHub\PyFLPdump>rem old 
+
+C:\sss\GitHub\PyFLPdump>rem python dump.py "C:/Program Files/Image-Line/FL Studio 20/Data/Demo projects/Demo songs/Chris Bulman & Sarju Jagai - No Escape.flp" 
+
+C:\sss\GitHub\PyFLPdump>rem python dump.py "C:/Program Files/Image-Line/FL Studio 20/Data/Demo projects/Demo songs/Raubana - LIFE.flp" 
