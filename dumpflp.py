@@ -29,10 +29,10 @@ def json_string(txt: any):
     else:
         rr = str(txt)
         rr = rr.replace("\\", "/")
-        rr = rr.replace("\"", "'")
+        rr = rr.replace('"', "'")
         rr = rr.replace("\n", " ")
         rr = rr.replace("\r", " ")
-        
+
         # rr=rr.replace("2", "8")
         return '"' + rr + '"'
 
@@ -200,20 +200,7 @@ def dump_sampler(delimiter: str, sampler: pyflp.channel.Sampler):
     delimiter2 = ""
     for envelope in sampler.envelopes:
         endata = sampler.envelopes[envelope]
-        print("							" + delimiter2 + "{" + json_string(envelope) + ": {" 
-        + "amount: " + json_num(endata.amount) 
-        + ", attack: " + json_num(endata.attack) 
-        + ", attack_tension: " + json_num(endata.attack_tension) 
-        + ", decay: " + json_num(endata.decay) 
-        + ", decay_tension: " + json_num(endata.decay_tension) 
-        + ", enabled: " + json_bool(endata.enabled) 
-        + ", hold: " + json_num(endata.hold) 
-        + ", predelay: " + json_num(endata.predelay) 
-        + ", release: " + json_num(endata.release) 
-        + ", release_tension: " + json_num(endata.release_tension) 
-        + ", sustain: " + json_num(endata.sustain) 
-        + ", synced: " + json_bool(endata.synced) 
-        + "}}")
+        print("							" + delimiter2 + "{" + json_string(envelope) + ": {" + "amount: " + json_num(endata.amount) + ", attack: " + json_num(endata.attack) + ", attack_tension: " + json_num(endata.attack_tension) + ", decay: " + json_num(endata.decay) + ", decay_tension: " + json_num(endata.decay_tension) + ", enabled: " + json_bool(endata.enabled) + ", hold: " + json_num(endata.hold) + ", predelay: " + json_num(endata.predelay) + ", release: " + json_num(endata.release) + ", release_tension: " + json_num(endata.release_tension) + ", sustain: " + json_num(endata.sustain) + ", synced: " + json_bool(endata.synced) + "}}")
         delimiter2 = ", "
     print("							]")
     print("						}")
@@ -453,9 +440,9 @@ def dump_patterns(project: pyflp.Project):
 def dump_flp(project: pyflp.Project):
     print("	, flp: {")
     print("		version: " + json_string(str(project.version)))
-    # dump_arrangements(project)
+    dump_arrangements(project)
     print("		, artists: " + json_string(project.artists))
-    dump_channel_rack(project)
+    #dump_channel_rack(project)
     print("		, comments: " + json_string(project.comments))
     print("		, created_on: " + json_date(project.created_on))
     print("		, data_path: " + json_string(project.data_path))
